@@ -3,9 +3,9 @@ const ApiError = require('./ApiError');
 const errorHandler = (err, req, res, next) => {
   const isDev = process.env.NODE_ENV !== 'production';
 
-  // Log all errors with context
+  // Log all errors with context (always log full details — Vercel dashboard captures these)
   console.error(`[Error] ${req.method} ${req.originalUrl} — ${err.name || 'Error'}: ${err.message}`);
-  if (isDev && err.stack) console.error(err.stack);
+  if (err.stack) console.error(err.stack);
 
   // Known intentional error
   if (err instanceof ApiError) {

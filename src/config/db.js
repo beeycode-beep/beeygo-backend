@@ -3,9 +3,12 @@ require('dotenv').config();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: 30, // maximum number of connections in the pool
-  idleTimeoutMillis: 30000, // close idle clients after 30 seconds
-  connectionTimeoutMillis: 15000, // wait up to 15s for cold boot
+  // Serverless-safe pool config:
+  // Each Vercel function instance is isolated — a high max would exhaust
+  // Neon's free-tier connection limit across concurrent invocations.
+  max: 5,
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 10000,
 });
 
 async function initDB() {

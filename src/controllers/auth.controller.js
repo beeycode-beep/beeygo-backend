@@ -130,6 +130,8 @@ exports.telegramAuth = async (req, res, next) => {
   }
 
   // Upsert user atomically — new user gets referral counted once
+  // NOTE: declared OUTSIDE the try block so it is accessible after client.release()
+  let currentReferralCount = 0;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -138,8 +140,6 @@ exports.telegramAuth = async (req, res, next) => {
       'SELECT telegram_id, referral_count FROM users WHERE telegram_id = $1',
       [telegramId]
     );
-
-    let currentReferralCount = 0;
 
     if (existing.rows.length === 0) {
       // New user — insert and optionally bump referral count
