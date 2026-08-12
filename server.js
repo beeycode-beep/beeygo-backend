@@ -44,7 +44,7 @@ app.use(cors({
     'http://localhost:5173',
     'http://localhost:3000',
     'https://beeygo-admin-three.vercel.app',
-    'https://beeygo-backend.vercel.app',
+    'https://beeygo-backends.vercel.app',
     'https://t.me',
     /\.vercel\.app$/,
     /\.telegram\.org$/,

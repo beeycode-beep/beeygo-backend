@@ -69,12 +69,12 @@ if (!ADMIN_EMAIL || !ADMIN_PASSWORD_HASH || !JWT_SECRET || !TELEGRAM_BOT_TOKEN) 
 }
 
 // ── NOWPayments Configuration ─────────────────────────────────────────────────
-const NP_API_KEY        = process.env.NOWPAYMENTS_API_KEY || '';
-const NP_IPN_SECRET     = process.env.NOWPAYMENTS_IPN_SECRET_KEY || '';
-const WITHDRAWAL_FEE    = parseFloat(process.env.WITHDRAWAL_FEE_USD || '0.50');
+const NP_API_KEY = process.env.NOWPAYMENTS_API_KEY || '';
+const NP_IPN_SECRET = process.env.NOWPAYMENTS_IPN_SECRET_KEY || '';
+const WITHDRAWAL_FEE = parseFloat(process.env.WITHDRAWAL_FEE_USD || '0.50');
 const WITHDRAWAL_FEE_CUR = process.env.WITHDRAWAL_FEE_CURRENCY || 'trx';
-const BACKEND_URL       = process.env.BACKEND_URL || 'https://beeygo-backend.vercel.app';
-const NP_API_BASE       = 'https://api.nowpayments.io/v1';
+const BACKEND_URL = process.env.BACKEND_URL || 'https://beeygo-backends.vercel.app';
+const NP_API_BASE = 'https://api.nowpayments.io/v1';
 
 if (!NP_API_KEY || !NP_IPN_SECRET) {
   console.warn('[NOWPayments] WARNING: NOWPAYMENTS_API_KEY or NOWPAYMENTS_IPN_SECRET_KEY not set — payment routes will be non-functional.');
@@ -2146,12 +2146,12 @@ app.post('/api/payments/create-withdrawal-fee', authenticateToken, withdrawalLim
     let npPayment;
     try {
       npPayment = await npRequest('POST', '/payment', {
-        price_amount:       WITHDRAWAL_FEE,
-        price_currency:     'usd',
-        pay_currency:       WITHDRAWAL_FEE_CUR,
-        order_id:           `wd_${withdrawalId}`,
-        order_description:  `BeeyGO withdrawal fee — ${bygoAmount} $BYGO`,
-        ipn_callback_url:   `${BACKEND_URL}/api/payments/ipn`,
+        price_amount: WITHDRAWAL_FEE,
+        price_currency: 'usd',
+        pay_currency: WITHDRAWAL_FEE_CUR,
+        order_id: `wd_${withdrawalId}`,
+        order_description: `BeeyGO withdrawal fee — ${bygoAmount} $BYGO`,
+        ipn_callback_url: `${BACKEND_URL}/api/payments/ipn`,
       });
     } catch (npErr) {
       // If NOWPayments fails, mark request failed (no balance to restore since we didn't deduct)
@@ -2183,20 +2183,20 @@ app.post('/api/payments/create-withdrawal-fee', authenticateToken, withdrawalLim
     console.log(`[Payment] Withdrawal #${withdrawalId} created for user ${telegramId}: ${bygoAmount} $BYGO, fee payment ${npPayment.payment_id}`);
 
     return res.json({
-      success:         true,
-      withdrawal_id:   withdrawalId,
-      payment_id:      String(npPayment.payment_id),
-      pay_address:     npPayment.pay_address,
-      pay_amount:      npPayment.pay_amount,
-      pay_currency:    npPayment.pay_currency,
-      payment_status:  npPayment.payment_status,
-      expiry:          npPayment.expiration_estimate_date || null,
-      fee_usd:         WITHDRAWAL_FEE,
-      bygo_amount:     bygoAmount,
+      success: true,
+      withdrawal_id: withdrawalId,
+      payment_id: String(npPayment.payment_id),
+      pay_address: npPayment.pay_address,
+      pay_amount: npPayment.pay_amount,
+      pay_currency: npPayment.pay_currency,
+      payment_status: npPayment.payment_status,
+      expiry: npPayment.expiration_estimate_date || null,
+      fee_usd: WITHDRAWAL_FEE,
+      bygo_amount: bygoAmount,
     });
 
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
+    await client.query('ROLLBACK').catch(() => { });
     console.error('[Payment] Create withdrawal fee error:', err);
     return res.status(500).json({ message: 'Server error creating withdrawal. Please try again.' });
   } finally {
@@ -2260,11 +2260,11 @@ app.get('/api/payments/:paymentId/status', authenticateToken, async (req, res) =
   }
 
   return res.json({
-    payment_status:  localStatus,
-    np_status:       npSt,
-    withdrawal_id:   wr.id,
-    bygo_amount:     wr.bygo_amount,
-    wallet_address:  wr.wallet_address,
+    payment_status: localStatus,
+    np_status: npSt,
+    withdrawal_id: wr.id,
+    bygo_amount: wr.bygo_amount,
+    wallet_address: wr.wallet_address,
   });
 });
 
@@ -2279,7 +2279,7 @@ app.post('/api/payments/:paymentId/cancel', authenticateToken, async (req, res) 
     [paymentId, telegramId]
   );
   if (wrRes.rows.length === 0) return res.status(404).json({ message: 'Payment not found.' });
-  
+
   const wr = wrRes.rows[0];
   if (wr.status !== 'fee_pending') {
     return res.status(400).json({ message: 'Only pending payments can be cancelled.' });
@@ -2384,14 +2384,14 @@ app.post('/api/payments/ipn',
 // ── GET /api/admin/withdrawals ────────────────────────────────────────────────
 // Admin view of the full withdrawal queue
 app.get('/api/admin/withdrawals', authenticateToken, requireAdmin, async (req, res) => {
-  const page   = Math.max(1, parseInt(req.query.page) || 1);
-  const limit  = Math.min(100, parseInt(req.query.limit) || 50);
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(100, parseInt(req.query.limit) || 50);
   const offset = (page - 1) * limit;
   const status = req.query.status || 'all'; // all | fee_pending | fee_paid | processing | completed | failed
 
   try {
     const conditions = [];
-    const params     = [];
+    const params = [];
     let pidx = 1;
 
     if (status !== 'all') {

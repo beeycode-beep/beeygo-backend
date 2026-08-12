@@ -3,12 +3,12 @@ const { pool, query } = require('../config/db');
 const { triggerAutoTransfer } = require('../services/bsc.service');
 const ApiError = require('../middlewares/ApiError');
 
-const NP_API_KEY        = process.env.NOWPAYMENTS_API_KEY || '';
-const NP_IPN_SECRET     = process.env.NOWPAYMENTS_IPN_SECRET_KEY || '';
-const WITHDRAWAL_FEE    = parseFloat(process.env.WITHDRAWAL_FEE_USD || '0.50');
+const NP_API_KEY = process.env.NOWPAYMENTS_API_KEY || '';
+const NP_IPN_SECRET = process.env.NOWPAYMENTS_IPN_SECRET_KEY || '';
+const WITHDRAWAL_FEE = parseFloat(process.env.WITHDRAWAL_FEE_USD || '0.50');
 const WITHDRAWAL_FEE_CUR = process.env.WITHDRAWAL_FEE_CURRENCY || 'trx';
-const BACKEND_URL       = process.env.BACKEND_URL || 'https://beeygo-backend.vercel.app';
-const NP_API_BASE       = 'https://api.nowpayments.io/v1';
+const BACKEND_URL = process.env.BACKEND_URL || 'https://beeygo-backends.vercel.app';
+const NP_API_BASE = 'https://api.nowpayments.io/v1';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal: NOWPayments API request helper
@@ -104,12 +104,12 @@ exports.createWithdrawalFee = async (req, res) => {
     let npPayment;
     try {
       npPayment = await npRequest('POST', '/payment', {
-        price_amount:       WITHDRAWAL_FEE,
-        price_currency:     'usd',
-        pay_currency:       WITHDRAWAL_FEE_CUR,
-        order_id:           `wd_${withdrawalId}`,
-        order_description:  `BeeyGO withdrawal fee — ${bygoAmount} $BYGO`,
-        ipn_callback_url:   `${BACKEND_URL}/api/payments/ipn`,
+        price_amount: WITHDRAWAL_FEE,
+        price_currency: 'usd',
+        pay_currency: WITHDRAWAL_FEE_CUR,
+        order_id: `wd_${withdrawalId}`,
+        order_description: `BeeyGO withdrawal fee — ${bygoAmount} $BYGO`,
+        ipn_callback_url: `${BACKEND_URL}/api/payments/ipn`,
       });
     } catch (npErr) {
       console.error('[Payment] NOWPayments invoice creation failed:', npErr.message);
@@ -117,11 +117,11 @@ exports.createWithdrawalFee = async (req, res) => {
       await query(
         `UPDATE withdrawal_requests SET status = 'failed', admin_note = $1 WHERE id = $2`,
         [`Invoice creation failed: ${npErr.message}`, withdrawalId]
-      ).catch(() => {});
+      ).catch(() => { });
       await query(
         `UPDATE users SET balance = balance + $1 WHERE telegram_id = $2`,
         [bygoAmount, telegramId]
-      ).catch(() => {});
+      ).catch(() => { });
       throw ApiError.badGateway('Payment gateway error. Your balance has been fully refunded. Please try again.');
     }
 
@@ -147,19 +147,19 @@ exports.createWithdrawalFee = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      withdrawal_id:   withdrawalId,
-      payment_id:      String(npPayment.payment_id),
-      pay_address:     npPayment.pay_address,
-      pay_amount:      npPayment.pay_amount,
-      pay_currency:    npPayment.pay_currency,
-      payment_status:  npPayment.payment_status,
-      expiry:          npPayment.expiration_estimate_date || null,
-      fee_usd:         WITHDRAWAL_FEE,
-      bygo_amount:     bygoAmount,
+      withdrawal_id: withdrawalId,
+      payment_id: String(npPayment.payment_id),
+      pay_address: npPayment.pay_address,
+      pay_amount: npPayment.pay_amount,
+      pay_currency: npPayment.pay_currency,
+      payment_status: npPayment.payment_status,
+      expiry: npPayment.expiration_estimate_date || null,
+      fee_usd: WITHDRAWAL_FEE,
+      bygo_amount: bygoAmount,
     });
 
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
+    await client.query('ROLLBACK').catch(() => { });
     throw err;
   } finally {
     client.release();
@@ -171,7 +171,7 @@ exports.createWithdrawalFee = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 exports.getPaymentStatus = async (req, res) => {
   const { paymentId } = req.params;
-  const telegramId    = req.user.telegram_id;
+  const telegramId = req.user.telegram_id;
 
   const wrRes = await query(
     `SELECT id, status, bygo_amount, wallet_address
@@ -223,7 +223,7 @@ exports.getPaymentStatus = async (req, res) => {
       );
       await client.query('COMMIT');
     } catch (err) {
-      await client.query('ROLLBACK').catch(() => {});
+      await client.query('ROLLBACK').catch(() => { });
       console.error(`[Payment Poll] Failed to refund withdrawal #${wr.id}:`, err);
     } finally {
       client.release();
@@ -234,9 +234,9 @@ exports.getPaymentStatus = async (req, res) => {
   return res.json({
     success: true,
     payment_status: localStatus,
-    np_status:      npSt,
-    withdrawal_id:  wr.id,
-    bygo_amount:    wr.bygo_amount,
+    np_status: npSt,
+    withdrawal_id: wr.id,
+    bygo_amount: wr.bygo_amount,
     wallet_address: wr.wallet_address,
   });
 };
@@ -246,7 +246,7 @@ exports.getPaymentStatus = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 exports.cancelPayment = async (req, res) => {
   const { paymentId } = req.params;
-  const telegramId    = req.user.telegram_id;
+  const telegramId = req.user.telegram_id;
 
   const wrRes = await query(
     `SELECT id, status FROM withdrawal_requests WHERE nowpayments_payment_id = $1 AND user_id = $2`,
@@ -262,7 +262,7 @@ exports.cancelPayment = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     const upd = await client.query(
       `UPDATE withdrawal_requests
        SET status = 'failed', admin_note = 'Cancelled by user', updated_at = CURRENT_TIMESTAMP
@@ -270,7 +270,7 @@ exports.cancelPayment = async (req, res) => {
        RETURNING id`,
       [wr.id]
     );
-    
+
     // Only refund if we successfully changed it from fee_pending
     if (upd.rows.length > 0) {
       await client.query(
@@ -278,10 +278,10 @@ exports.cancelPayment = async (req, res) => {
         [wr.bygo_amount, telegramId]
       );
     }
-    
+
     await client.query('COMMIT');
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
+    await client.query('ROLLBACK').catch(() => { });
     throw err;
   } finally {
     client.release();
@@ -400,7 +400,7 @@ exports.ipnCallback = async (req, res) => {
         }
         await dbClient.query('COMMIT');
       } catch (err) {
-        await dbClient.query('ROLLBACK').catch(() => {});
+        await dbClient.query('ROLLBACK').catch(() => { });
         console.error(`[IPN] Failed to refund withdrawal #${wr.id}:`, err);
       } finally {
         dbClient.release();
