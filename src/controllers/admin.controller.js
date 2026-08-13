@@ -97,6 +97,68 @@ exports.deleteTask = async (req, res) => {
   res.json({ success: true });
 };
 
+// ───────────────────────────────────────────────────────────────────────────────
+// ADS — Admin CRUD
+// ───────────────────────────────────────────────────────────────────────────────
+
+exports.getAds = async (req, res) => {
+  const result = await query('SELECT * FROM ads ORDER BY created_at DESC');
+  res.json({ success: true, ads: result.rows });
+};
+
+exports.getActiveAd = async (req, res) => {
+  const result = await query(
+    'SELECT * FROM ads WHERE active = true ORDER BY created_at DESC LIMIT 1'
+  );
+  if (result.rows.length === 0) return res.json({ success: true, ad: null });
+  res.json({ success: true, ad: result.rows[0] });
+};
+
+exports.createAd = async (req, res) => {
+  const { title, description, image_url, link_url, cta_text, display_seconds, active } = req.body;
+  const result = await query(
+    `INSERT INTO ads (title, description, image_url, link_url, cta_text, display_seconds, active)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING *`,
+    [
+      title,
+      description || null,
+      image_url || null,
+      link_url || null,
+      cta_text || 'Learn More',
+      display_seconds || 10,
+      active !== false,
+    ]
+  );
+  res.status(201).json({ success: true, ad: result.rows[0] });
+};
+
+exports.updateAd = async (req, res) => {
+  const { title, description, image_url, link_url, cta_text, display_seconds, active } = req.body;
+  const result = await query(
+    `UPDATE ads
+     SET title           = COALESCE($1, title),
+         description     = COALESCE($2, description),
+         image_url       = COALESCE($3, image_url),
+         link_url        = COALESCE($4, link_url),
+         cta_text        = COALESCE($5, cta_text),
+         display_seconds = COALESCE($6, display_seconds),
+         active          = COALESCE($7, active),
+         updated_at      = CURRENT_TIMESTAMP
+     WHERE id = $8
+     RETURNING *`,
+    [title, description, image_url, link_url, cta_text, display_seconds, active, req.params.id]
+  );
+  if (result.rows.length === 0) throw ApiError.notFound('Ad not found.');
+  res.json({ success: true, ad: result.rows[0] });
+};
+
+exports.deleteAd = async (req, res) => {
+  const result = await query('DELETE FROM ads WHERE id = $1 RETURNING id', [req.params.id]);
+  if (result.rows.length === 0) throw ApiError.notFound('Ad not found.');
+  res.json({ success: true });
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SUBMISSIONS — Admin Approval
 // ─────────────────────────────────────────────────────────────────────────────

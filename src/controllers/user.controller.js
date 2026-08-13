@@ -8,7 +8,7 @@ exports.getMe = async (req, res) => {
   const result = await query(
     `SELECT telegram_id, balance, total_claimed, claim_count, wallet_address,
             last_claim_time, referral_count, daily_streak, last_daily_claim,
-            spins_used_today, last_spin_date
+            spins_used_today, last_spin_date, referral_bonus_pending
      FROM users WHERE telegram_id = $1`,
     [req.user.telegram_id]
   );
@@ -228,9 +228,61 @@ exports.claim = async (req, res) => {
       [safeReward, req.user.telegram_id]
     );
 
+    // ── 5% Referral Passive Bonus ──────────────────────────────────────────
+    // Credit 5% of this claim to the inviter's pending bonus (if they have one)
+    const referralBonus = Math.floor(safeReward * 0.05);
+    if (referralBonus > 0) {
+      await client.query(
+        `UPDATE users
+         SET referral_bonus_pending = referral_bonus_pending + $1
+         WHERE telegram_id = (
+           SELECT referred_by FROM users WHERE telegram_id = $2
+         )`,
+        [referralBonus, req.user.telegram_id]
+      );
+    }
+
     await client.query('COMMIT');
-    console.log(`[Claim] User ${req.user.telegram_id} claimed ${safeReward} $BYGO`);
+    console.log(`[Claim] User ${req.user.telegram_id} claimed ${safeReward} $BYGO (referral bonus: ${referralBonus} to inviter)`);
     res.json({ success: true, reward: safeReward, ...updated.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/users/me/referral-claim — Claim accumulated referral bonus
+// ─────────────────────────────────────────────────────────────────────────────
+exports.claimReferralBonus = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const userRes = await client.query(
+      'SELECT referral_bonus_pending FROM users WHERE telegram_id = $1 FOR UPDATE',
+      [req.user.telegram_id]
+    );
+    if (userRes.rows.length === 0) throw ApiError.notFound('User not found.');
+
+    const pending = userRes.rows[0].referral_bonus_pending || 0;
+    if (pending <= 0) throw ApiError.badRequest('No referral rewards to claim.');
+
+    const updated = await client.query(
+      `UPDATE users
+       SET balance                = balance + $1,
+           total_claimed          = total_claimed + $1,
+           referral_bonus_pending = 0
+       WHERE telegram_id = $2
+       RETURNING balance, total_claimed, referral_bonus_pending`,
+      [pending, req.user.telegram_id]
+    );
+
+    await client.query('COMMIT');
+    console.log(`[Referral] User ${req.user.telegram_id} claimed ${pending} $BYGO referral bonus`);
+    res.json({ success: true, reward: pending, ...updated.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     throw err;

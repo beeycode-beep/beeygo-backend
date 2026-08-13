@@ -23,6 +23,7 @@ router.post('/me/daily-claim', authenticateToken, requireUser, asyncHandler(user
 router.post('/me/spin', authenticateToken, requireUser, asyncHandler(userController.spin));
 router.get('/leaderboard', authenticateToken, asyncHandler(userController.leaderboard)); // open to users & admin
 router.post('/me/claim', authenticateToken, requireUser, asyncHandler(userController.claim));
+router.post('/me/referral-claim', authenticateToken, requireUser, asyncHandler(userController.claimReferralBonus));
 router.post('/me/wallet', authenticateToken, requireUser, walletValidation, asyncHandler(userController.saveWallet));
 router.delete('/me/wallet', authenticateToken, requireUser, asyncHandler(userController.removeWallet));
 

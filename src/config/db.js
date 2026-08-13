@@ -39,7 +39,8 @@ async function initDB() {
       ADD COLUMN IF NOT EXISTS daily_streak INT DEFAULT 0,
       ADD COLUMN IF NOT EXISTS last_daily_claim TIMESTAMP,
       ADD COLUMN IF NOT EXISTS spins_used_today INT DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS last_spin_date TIMESTAMP
+      ADD COLUMN IF NOT EXISTS last_spin_date TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS referral_bonus_pending INT DEFAULT 0
     `);
 
     // 2. Create Settings Table (Key-Value or JSON blob)
@@ -215,6 +216,35 @@ async function initDB() {
 
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_payment_events_np_id ON payment_events(nowpayments_payment_id)
+    `);
+
+    // ── 8. Ads Table ──────────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ads (
+        id              SERIAL PRIMARY KEY,
+        title           VARCHAR(255) NOT NULL,
+        description     TEXT,
+        image_url       VARCHAR(1000),
+        link_url        VARCHAR(1000),
+        cta_text        VARCHAR(100) DEFAULT 'Learn More',
+        display_seconds INT NOT NULL DEFAULT 10,
+        active          BOOLEAN DEFAULT true,
+        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Safe column additions for existing deployments
+    await client.query(`
+      ALTER TABLE ads
+        ADD COLUMN IF NOT EXISTS link_url        VARCHAR(1000),
+        ADD COLUMN IF NOT EXISTS cta_text        VARCHAR(100) DEFAULT 'Learn More',
+        ADD COLUMN IF NOT EXISTS display_seconds INT NOT NULL DEFAULT 10,
+        ADD COLUMN IF NOT EXISTS updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_ads_active ON ads(active)
     `);
 
   } finally {
