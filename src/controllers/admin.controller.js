@@ -135,15 +135,17 @@ exports.createAd = async (req, res) => {
 
 exports.updateAd = async (req, res) => {
   const { title, description, image_url, link_url, cta_text, display_seconds, active } = req.body;
+  
+  // Frontend sends all fields, so we can just update them directly. Nulls will properly clear the fields.
   const result = await query(
     `UPDATE ads
-     SET title           = COALESCE($1, title),
-         description     = COALESCE($2, description),
-         image_url       = COALESCE($3, image_url),
-         link_url        = COALESCE($4, link_url),
-         cta_text        = COALESCE($5, cta_text),
-         display_seconds = COALESCE($6, display_seconds),
-         active          = COALESCE($7, active),
+     SET title           = $1,
+         description     = $2,
+         image_url       = $3,
+         link_url        = $4,
+         cta_text        = $5,
+         display_seconds = $6,
+         active          = $7,
          updated_at      = CURRENT_TIMESTAMP
      WHERE id = $8
      RETURNING *`,
