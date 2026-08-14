@@ -21,7 +21,7 @@ exports.adminLogin = async (req, res, next) => {
     throw ApiError.unauthorized('Invalid credentials.');
   }
 
-  const token = jwt.sign({ email: adminEmail, role: 'admin' }, jwtSecret, { expiresIn: '24h' });
+  const token = jwt.sign({ email: adminEmail, role: 'admin' }, jwtSecret, { expiresIn: '30d' });
   res.json({ success: true, token, message: 'Login successful' });
 };
 

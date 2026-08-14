@@ -73,13 +73,18 @@ router.get('/withdrawals', authenticateToken, requireAdmin, asyncHandler(adminCo
 router.put('/withdrawals/:id', authenticateToken, requireAdmin, updateWithdrawalValidation, asyncHandler(adminController.updateWithdrawal));
 router.post('/withdrawals/:id/retry', authenticateToken, requireAdmin, asyncHandler(adminController.retryWithdrawal));
 
-// Ads
+// Ads — Public: active ad for mini-app (MUST be before /ads/:id pattern)
+router.get('/ads/active', asyncHandler(adminController.getActiveAd));
+
+// Ads — Admin CRUD (protected)
 router.get('/ads', authenticateToken, requireAdmin, asyncHandler(adminController.getAds));
-router.post('/ads', authenticateToken, requireAdmin, asyncHandler(adminController.createAd));
+router.post('/ads', authenticateToken, requireAdmin, [
+  body('title').trim().notEmpty().withMessage('Title is required'),
+  body('display_seconds').isInt({ min: 1, max: 300 }).withMessage('Display seconds must be between 1 and 300'),
+  body('active').isBoolean().optional(),
+  validate,
+], asyncHandler(adminController.createAd));
 router.put('/ads/:id', authenticateToken, requireAdmin, asyncHandler(adminController.updateAd));
 router.delete('/ads/:id', authenticateToken, requireAdmin, asyncHandler(adminController.deleteAd));
-
-// Public: active ad for mini-app (no auth required)
-router.get('/ads/active', asyncHandler(adminController.getActiveAd));
 
 module.exports = router;
